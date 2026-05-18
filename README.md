@@ -1,58 +1,185 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Uptime Monitor API
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A Laravel 13 / PHP 8.4 REST API that monitors website availability, stores check history, and sends email alerts on status changes.
 
-## About Laravel
+---
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Requirements
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+| Tool       | Version    |
+|------------|------------|
+| PHP        | ≥ 8.4      |
+| Composer   | ≥ 2.x      |
+| MySQL      | ≥ 8.0 (or MariaDB ≥ 10.6) |
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+---
 
-## Learning Laravel
-
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
-
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+## Quick Start
 
 ```bash
-composer require laravel/boost --dev
+# 1. Clone and install dependencies
+git clone https://github.com/Roymaniac/uptime-monitor.git
+cd uptime-monitor
+composer install
 
-php artisan boost:install
+# 2. Configure environment
+cp .env.example .env
+php artisan key:generate
+
+# 3. Edit .env – set DB_* and MAIL_* values, then:
+php artisan migrate
+
+# 4. (Optional) Seed with sample data
+php artisan db:seed
+
+# 5. Start the development server
+php artisan serve
+
+# 6. Run schedules (in another terminal)
+php artisan schedule:work
+
+# 7. Start a queue worker (required for checks and notifications)
+php artisan queue:work
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+---
 
-## Contributing
+## Environment Variables
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+| Variable               | Default                      | Description                                      |
+|------------------------|------------------------------|--------------------------------------------------|
+| `MONITOR_ALERT_EMAIL`  | falls back to `MAIL_FROM_ADDRESS` | Recipient for up/down alerts               |
 
-## Code of Conduct
+## Running Tests
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+```bash
+php artisan test
+# or with coverage
+php artisan test --coverage
+```
 
-## Security Vulnerabilities
+Tests use an in-memory SQLite database by default (`phpunit.xml` sets `DB_CONNECTION=sqlite`, `DB_DATABASE=:memory:`).
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+---
 
-## License
+## API Reference
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+### `POST /api/monitors`
+
+Register a URL to monitor.
+
+**Request body**
+
+```json
+{
+  "url": "https://example.com",
+  "check_interval": 5,
+  "threshold": 3
+}
+```
+
+| Field            | Type    | Required | Description                                         |
+|------------------|---------|----------|-----------------------------------------------------|
+| `url`            | string  | Yes      | Valid, unique HTTPS/HTTP URL                        |
+| `check_interval` | integer | No       | Minutes between checks. Default `5`, min `1`, max `60` |
+| `threshold`      | integer | No       | Consecutive failures before marking down. Default `3`, min `1` |
+
+**201 Created**
+
+```json
+{
+  "data": {
+    "id": 1,
+    "url": "https://example.com",
+    "check_interval": 5,
+    "threshold": 3,
+    "status": "pending",
+    "last_checked_at": null,
+    "uptime_percentage": null,
+    "created_at": "2026-05-13T10:00:00.000000Z"
+  }
+}
+```
+
+**422 Unprocessable Entity** (validation failure or duplicate URL)
+
+```json
+{
+  "message": "The url field is required.",
+  "errors": {
+    "url": ["The url field is required."]
+  }
+}
+```
+
+---
+
+### `GET /api/monitors`
+
+List all registered monitors with their current status.
+
+**200 OK**
+
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "url": "https://example.com",
+      "check_interval": 5,
+      "threshold": 3,
+      "status": "up",
+      "last_checked_at": "2026-05-13T10:05:00.000000Z",
+      "uptime_percentage": 99.5,
+      "created_at": "2026-05-13T10:00:00.000000Z"
+    }
+  ]
+}
+```
+
+---
+
+### `GET /api/monitors/{id}/history`
+
+Paginated check history for a monitor, newest first.
+
+**Query parameters**
+
+| Param      | Type    | Default | Max |
+|------------|---------|---------|-----|
+| `page`     | integer | 1       | —   |
+| `per_page` | integer | 15      | 100 |
+
+**200 OK**
+
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "monitor_id": 1,
+      "status_code": 200,
+      "response_time_ms": 245,
+      "is_up": true,
+      "checked_at": "2026-05-13T10:05:00.000000Z"
+    }
+  ],
+  "meta": {
+    "current_page": 1,
+    "per_page": 15,
+    "total": 50
+  }
+}
+```
+
+**404 Not Found**
+
+```json
+{ "message": "Monitor not found." }
+```
+
+---
+
+## License MIT License
+
+Copyright (c) 2026 Roymaniac

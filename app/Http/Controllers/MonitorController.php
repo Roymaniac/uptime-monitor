@@ -4,6 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Monitor;
 use Illuminate\Http\Request;
+use App\Jobs\CheckMonitorJob;
+use App\Http\Resources\MonitorResource;
+use App\Http\Requests\StoreMonitorRequest;
+use App\Http\Resources\MonitorCheckResource;
 
 class MonitorController extends Controller
 {
@@ -12,54 +16,41 @@ class MonitorController extends Controller
      */
     public function index()
     {
-        //
-    }
-
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
+        $monitors = Monitor::latest()->get();
+        return MonitorResource::collection($monitors)
+            ->response()
+            ->setStatusCode(200);
     }
 
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function store(StoreMonitorRequest $request)
     {
-        //
+        $monitor = Monitor::create([
+            'url' => $request->validated('url'),
+            'check_interval' => $request->validated('check_interval', 5),
+            'threshold' => $request->validated('threshold', 3),
+            'status' => 'pending',
+        ]);
+
+        // dispatch monitor job
+        CheckMonitorJob::dispatch($monitor->id);
+
+        return (new MonitorResource($monitor))
+            ->response()
+            ->setStatusCode(201);
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(Monitor $monitor)
+    public function history(Request $request, Monitor $monitor)
     {
-        //
-    }
+        $perPage = min((int) $request->query('per_page', 15), 100);
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Monitor $monitor)
-    {
-        //
-    }
+        $checks = $monitor->checks()->latest('checked_at')
+            ->paginate($perPage);
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, Monitor $monitor)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Monitor $monitor)
-    {
-        //
+        return MonitorCheckResource::collection($checks)
+            ->response()
+            ->setStatusCode(200);
     }
 }

@@ -11,6 +11,5 @@ return [
     | and other related options here.
     |
     */
-
     'alert_email' => env('MONITOR_ALERT_EMAIL', env('MAIL_FROM_ADDRESS')),
 ];

@@ -21,17 +21,17 @@ class MonitorCheckFactory extends Factory
 
     public function definition(): array
     {
-        $isUp       = $this->faker->boolean(80);
+        $isUp = $this->faker->boolean(80);
         $statusCode = $isUp
             ? $this->faker->randomElement([200, 200, 200, 301, 302])
             : $this->faker->randomElement([0, 500, 503, 404]);
 
         return [
-            'monitor_id'       => Monitor::factory(),
-            'status_code'      => $statusCode,
+            'monitor_id'  => Monitor::factory(),
+            'status_code' => $statusCode,
             'response_time_ms' => $statusCode === 0 ? null : $this->faker->numberBetween(50, 2000),
-            'is_up'            => $isUp,
-            'checked_at'       => $this->faker->dateTimeBetween('-7 days', 'now'),
+            'is_up' => $isUp,
+            'checked_at' => $this->faker->dateTimeBetween('-7 days', 'now'),
         ];
     }
 }

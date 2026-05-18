@@ -21,12 +21,12 @@ class MonitorFactory extends Factory
     public function definition(): array
     {
         return [
-            'url'                  => 'https://' . $this->faker->unique()->domainName(),
-            'check_interval'       => $this->faker->numberBetween(1, 60),
-            'threshold'            => $this->faker->numberBetween(1, 5),
-            'status'               => $this->faker->randomElement(['pending', 'up', 'down']),
+            'url' => 'https://' . $this->faker->unique()->domainName(),
+            'check_interval' => $this->faker->numberBetween(1, 60),
+            'threshold' => $this->faker->numberBetween(1, 5),
+            'status' => $this->faker->randomElement(['pending', 'up', 'down']),
             'consecutive_failures' => 0,
-            'last_checked_at'      => null,
+            'last_checked_at' => null,
         ];
     }
 
@@ -38,7 +38,7 @@ class MonitorFactory extends Factory
     public function up(): static
     {
         return $this->state([
-            'status'          => 'up',
+            'status' => 'up',
             'last_checked_at' => now()->subMinutes(5),
         ]);
     }
@@ -46,9 +46,9 @@ class MonitorFactory extends Factory
     public function down(): static
     {
         return $this->state([
-            'status'               => 'down',
+            'status' => 'down',
             'consecutive_failures' => 3,
-            'last_checked_at'      => now()->subMinutes(5),
+            'last_checked_at' => now()->subMinutes(5),
         ]);
     }
 }
