@@ -33,7 +33,7 @@ php artisan migrate
 php artisan db:seed
 
 # 5. Start the development server
-php artisan serve
+composer run dev
 
 # 6. Run schedules (in another terminal)
 php artisan schedule:work
